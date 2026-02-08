@@ -1,0 +1,101 @@
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from functools import lru_cache
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
+
+from functions.logger.logger import get_logger
+logger = get_logger(__name__)
+
+@dataclass
+class AppSettings:
+    """
+    Strongly-typed application configuration.
+
+    Values are primarily sourced from environment variables, which in Azure
+    Functions come from Application Settings or `local.settings.json` in
+    local development.
+    """
+
+    environment: str | None = None
+    sql_server: str | None = None
+    sql_database: str | None = None
+    email_from: str | None = None
+    email_to: str | None = None
+    acs_email_connection_string: str | None = None
+
+
+### key vault helpers ###
+@lru_cache()
+def get_key_vault_client() -> SecretClient:
+    """ gets a secret client for the key vault, returns None if the client cannot be created """
+    try:
+        credential = DefaultAzureCredential()
+        client = SecretClient(vault_url=os.getenv("KEY_VAULT_URL"), credential=credential)
+        return client
+    except Exception as e:
+        logger.error(f"Error getting key vault client: {e}")
+        return None
+
+def get_secret(secret_name: str, default_env_var: str|None = None) -> str|None:
+    """ gets a secret from the key vault, or returns the default value if not found,
+        which should be found in the system environment variables 
+        
+        accepts:
+            secret_name: the name of the secret to get
+            default_env_var: the environment variable that contains the value to return if not stored in the key vault
+        returns:
+            the secret value or the default value if not stored in the key vault
+        """
+    if default_env_var:
+        if os.getenv(default_env_var):
+            secret_value = os.getenv(default_env_var)
+            return secret_value
+
+    client = get_key_vault_client()
+    if client:
+        try:
+            secret = client.get_secret(secret_name)
+            secret_value = secret.value
+            return secret_value
+        except Exception as e:
+            logger.error(f"Error getting secret {secret_name}: {e}")
+            return None
+    else:
+        logger.error(f"Key vault client not found")
+        return None
+
+### cached settings helper ###
+@lru_cache()
+def get_settings() -> AppSettings:
+    """
+    Load and cache application settings.
+
+    This is called once per worker process and reused across function
+    invocations, so configuration access is cheap and consistent.
+    """
+
+    environment = get_secret(secret_name="ENVIRONMENT")
+    sql_server = get_secret(secret_name="SQL-SERVER")
+    sql_database = get_secret(secret_name="SQL-DATABASE")
+
+    # Email/SMTP settings
+    email_from = get_secret(secret_name="EMAIL-FROM")
+    email_to = get_secret(secret_name="EMAIL-TO")
+    acs_email_connection_string = get_secret(secret_name="ACS-EMAIL-CONNECTION-STRING")
+
+
+
+    return AppSettings(
+        environment=environment,
+        sql_server=sql_server,
+        sql_database=sql_database,
+        email_from=email_from,
+        email_to=email_to,
+        acs_email_connection_string=acs_email_connection_string
+
+    )
+
+
