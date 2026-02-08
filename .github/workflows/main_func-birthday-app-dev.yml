@@ -75,17 +75,6 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_1D0E04E6726F49A1803A2B77E3635B1A }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_0C9A386970594E00AF41D03F546B133A }}
 
-      - name: Identify deployment principal
-        run: |
-          echo "ClientId from workflow secret: ${{ secrets.AZUREAPPSERVICE_CLIENTID_2EB89CB522CE4FC9A344D8D88E78C1CB }}"
-          az account show --query "{user:user.name, tenantId:tenantId, subscriptionId:id}" -o json
-
-      - name: Check storage RBAC for this principal
-        run: |
-          SUB=$(az account show --query id -o tsv)
-          SCOPE="/subscriptions/$SUB/resourceGroups/rg-birthday-app-dev-zn/providers/Microsoft.Storage/storageAccounts/stgbirthdayappdev"
-          az role assignment list --assignee ${{ secrets.AZUREAPPSERVICE_CLIENTID_2EB89CB522CE4FC9A344D8D88E78C1CB }} --scope "$SCOPE" -o table
-
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
         id: deploy-to-function
