@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from uuid import UUID
 import time
 import sqlalchemy as sa
@@ -210,6 +211,56 @@ class SqlClient:
             logger.error("Error completing system event: %s", e)
             raise
 
-    ## Get birthdays for date range
+    ## Get birthdays for date
+    def get_birthdays_for_date(self, date) -> list[dict]:
+        """
+        Retrieve birthdays that fall on the same month/day as the provided date.
+        Returns a dictionary in the format: [{"name": "...", "email_to": "..."}]
+        """
+        try:
+            with self.engine.connect() as conn:
+                result = conn.execute(
+                    sa.text("""
+                        SELECT FullName, EmailTo
+                        FROM dbo.Birthdays
+                        WHERE MONTH(date_of_birth) = MONTH(:date)
+                        AND DAY(date_of_birth)   = DAY(:date)
+                        ORDER BY EmailTo, FullName;
+                    """),
+                    {"date": date},
+                )
 
+                birthdays = [{"name": row.FullName, "email_to": row.EmailTo} for row in result]
+                logger.info("Retrieved %s birthdays for date %s", len(birthdays), date)
+                return birthdays
+
+        except Exception as e:
+            logger.error("Error retrieving birthdays for date %s: %s", date, e)
+            raise
+
+    
+    def get_birthdays_for_month(self, date) -> list[dict]:
+        """
+        Retrieve birthdays that fall within the month of the provided date.
+        Returns: [{"name": "...", "birthday_day": <int>, "email_to": "..."}]
+        """
+        try:
+            with self.engine.connect() as conn:
+                result = conn.execute(
+                    sa.text("""
+                        SELECT FullName, DAY(date_of_birth) as birthday_day, EmailTo
+                        FROM dbo.Birthdays
+                        WHERE MONTH(date_of_birth) = MONTH(:date)
+                        ORDER BY EmailTo, DAY(date_of_birth), FullName;
+                    """),
+                    {"date": date},
+                )
+
+                birthdays = [{"name": row.FullName, "birthday_day": row.birthday_day, "email_to": row.EmailTo} for row in result]
+                logger.info("Retrieved %s birthdays for month of date %s", len(birthdays), date)
+                return birthdays
+
+        except Exception as e:
+            logger.error("Error retrieving birthdays for month of date %s: %s", date, e)
+            raise
     

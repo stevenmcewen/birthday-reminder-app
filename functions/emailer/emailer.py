@@ -10,12 +10,16 @@ from functions.sql.sql import SqlClient
 logger = get_logger(__name__)
 settings = get_settings()
 
-# main functions
-def send_monthly_birthday_summary_email(*, summary_df: pd.DataFrame) -> None:
-    pass
+# # main functions
+# def send_monthly_birthday_summary_email(*, summary_df: pd.DataFrame) -> None:
+#     try: 
+#         logger.info("Parsing monthly summary information from dataframe")
+#         payload_df = parse_payload(payload)
+#         subject, text_body = 
+#         subject, text_body, html_body, any_rows = build_email_bodies(payload_df)
 
-def send_daily_birthday_emails(*, birthdays_df: pd.DataFrame) -> None:
-    pass
+# def send_daily_birthday_emails(*, summary_df: pd.DataFrame) -> None:
+#     pass
 
 
 # # helpers
