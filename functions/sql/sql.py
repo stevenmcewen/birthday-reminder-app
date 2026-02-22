@@ -223,8 +223,8 @@ class SqlClient:
                     sa.text("""
                         SELECT FullName, EmailTo
                         FROM dbo.Birthdays
-                        WHERE MONTH(date_of_birth) = MONTH(:date)
-                        AND DAY(date_of_birth)   = DAY(:date)
+                        WHERE MONTH(Birthday) = MONTH(:date)
+                        AND DAY(Birthday)   = DAY(:date)
                         ORDER BY EmailTo, FullName;
                     """),
                     {"date": date},
@@ -248,10 +248,10 @@ class SqlClient:
             with self.engine.connect() as conn:
                 result = conn.execute(
                     sa.text("""
-                        SELECT FullName, DAY(date_of_birth) as birthday_day, EmailTo
+                        SELECT FullName, DAY(Birthday) as birthday_day, EmailTo
                         FROM dbo.Birthdays
-                        WHERE MONTH(date_of_birth) = MONTH(:date)
-                        ORDER BY EmailTo, DAY(date_of_birth), FullName;
+                        WHERE MONTH(Birthday) = MONTH(:date)
+                        ORDER BY EmailTo, DAY(Birthday), FullName;
                     """),
                     {"date": date},
                 )
