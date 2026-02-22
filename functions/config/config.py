@@ -23,7 +23,6 @@ class AppSettings:
     sql_server: str | None = None
     sql_database: str | None = None
     email_from: str | None = None
-    email_to: str | None = None
     acs_email_connection_string: str | None = None
 
 
@@ -83,7 +82,6 @@ def get_settings() -> AppSettings:
 
     # Email/SMTP settings
     email_from = get_secret(secret_name="EMAIL-FROM")
-    email_to = get_secret(secret_name="EMAIL-TO")
     acs_email_connection_string = get_secret(secret_name="ACS-EMAIL-CONNECTION-STRING")
 
 
@@ -93,7 +91,6 @@ def get_settings() -> AppSettings:
         sql_server=sql_server,
         sql_database=sql_database,
         email_from=email_from,
-        email_to=email_to,
         acs_email_connection_string=acs_email_connection_string
 
     )
