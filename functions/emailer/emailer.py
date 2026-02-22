@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 settings = get_settings()
 
 # main functions
-def send_monthly_birthday_summary_email(*, summary_df: pd.DataFrame) -> None:
+def send_monthly_birthday_summary_emails(*, summary_df: pd.DataFrame) -> dict[str, int]:
     """
         Send a monthly summary email containing all birthdays for the month.
 
@@ -19,16 +19,17 @@ def send_monthly_birthday_summary_email(*, summary_df: pd.DataFrame) -> None:
             summary_df (pd.DataFrame): A dataframe containing the monthly birthday summary information.
 
         Returns:
-            None
+            dict[str, int]: Counts for attempted/sent/failed emails.
     """
     # check if we have any data to send in the email, if not, skip email processing
     if summary_df.empty:
         logger.info("No birthday data for this month, skipping email processing.")
-        return
+        return {"attempted": 0, "sent": 0, "failed": 0}
 
     logger.info("Parsing monthly summary information from dataframe")
     # parse the summary dataframe to extract relevant information
     payload_df, to_addresses = parse_payload(summary_df)
+    result = {"attempted": len(to_addresses), "sent": 0, "failed": 0}
 
     for to_address in to_addresses:
         logger.info("Building and sending monthly birthday summary email to %s", to_address)
@@ -39,12 +40,16 @@ def send_monthly_birthday_summary_email(*, summary_df: pd.DataFrame) -> None:
             # send email via ACS
             send_email(subject, text_body, html_body, to_address)
         except Exception as exc:
+            result["failed"] += 1
             logger.exception("Failed to send monthly birthday summary email to %s: %s", to_address, exc)
             continue
-    return
+        else:
+            result["sent"] += 1
+
+    return result
 
 
-def send_daily_birthday_emails(*, summary_df: pd.DataFrame) -> None:
+def send_daily_birthday_emails(*, summary_df: pd.DataFrame) -> dict[str, int]:
     """
         Send daily birthday emails containing all birthdays for the day.
 
@@ -52,15 +57,16 @@ def send_daily_birthday_emails(*, summary_df: pd.DataFrame) -> None:
             summary_df (pd.DataFrame): A dataframe containing the daily birthday information.
 
         Returns:
-            None
+            dict[str, int]: Counts for attempted/sent/failed emails.
     """
     # check if we have any data to send in the email, if not, skip email processing
     if summary_df.empty:
         logger.info("No birthday data for today, skipping email processing.")
-        return 
+        return {"attempted": 0, "sent": 0, "failed": 0}
     logger.info("Parsing daily birthday information from dataframe")
     # parse the summary dataframe to extract relevant information
     payload_df, to_addresses = parse_payload(summary_df)
+    result = {"attempted": len(to_addresses), "sent": 0, "failed": 0}
 
     for to_address in to_addresses:
         logger.info("Building and sending daily birthday email to %s", to_address)
@@ -71,10 +77,13 @@ def send_daily_birthday_emails(*, summary_df: pd.DataFrame) -> None:
             # send email via ACS
             send_email(subject, text_body, html_body, to_address)
         except Exception as exc:
+            result["failed"] += 1
             logger.exception("Failed to send daily birthday email to %s: %s", to_address, exc)
             continue
+        else:
+            result["sent"] += 1
 
-    return
+    return result
     
 
 # helpers

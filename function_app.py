@@ -6,7 +6,7 @@ from functions.sql.sql import SqlClient
 from functions.logger.logger import get_logger
 
 from functions.birthday_logic.birthday import get_monthly_birthday_summary, get_daily_birthdays
-# from functions.emailer.emailer import send_monthly_birthday_summary_email, send_daily_birthday_emails
+from functions.emailer.emailer import send_monthly_birthday_summary_emails, send_daily_birthday_emails
 
 app = func.FunctionApp()
 
@@ -41,8 +41,17 @@ def MonthlyBirthdaySummary(timer: func.TimerRequest) -> None:
         logger.info("Monthly birthday summary retrieved")
 
         logger.info("Sending monthly birthday summary email.")
-        # send_monthly_birthday_summary_email(summary_df=summary_df)
-        logger.info("Monthly birthday summary email sent")
+        email_result = send_monthly_birthday_summary_emails(summary_df=summary_df)
+        if email_result["attempted"] > 0 and email_result["sent"] == 0:
+            raise RuntimeError("Failed to send monthly birthday summary email to all recipients.")
+        if email_result["failed"] > 0:
+            logger.warning(
+                "Monthly birthday summary email completed with partial failures. sent=%s failed=%s",
+                email_result["sent"],
+                email_result["failed"],
+            )
+        else:
+            logger.info("Monthly birthday summary email sent")
 
         sql_client.complete_system_event(
             system_event_id=system_event.id,
@@ -82,8 +91,17 @@ def DailyBirthdaySummary(timer: func.TimerRequest) -> None:
         logger.info("Daily birthday summary retrieved")
 
         logger.info("Sending daily birthday summary email.")
-        # send_daily_birthday_emails(summary_df=summary_df)
-        logger.info("Daily birthday summary email sent")
+        email_result = send_daily_birthday_emails(summary_df=summary_df)
+        if email_result["attempted"] > 0 and email_result["sent"] == 0:
+            raise RuntimeError("Failed to send daily birthday email to all recipients.")
+        if email_result["failed"] > 0:
+            logger.warning(
+                "Daily birthday email completed with partial failures. sent=%s failed=%s",
+                email_result["sent"],
+                email_result["failed"],
+            )
+        else:
+            logger.info("Daily birthday summary email sent")
 
         sql_client.complete_system_event(
             system_event_id=system_event.id,
@@ -97,110 +115,128 @@ def DailyBirthdaySummary(timer: func.TimerRequest) -> None:
             details=str(exc),
         )
 
-# # test functions
-# @app.route(route="test-monthly-summary", auth_level=func.AuthLevel.ANONYMOUS)
-# def MonthlyBirthdaySummaryTest(req: func.HttpRequest) -> func.HttpResponse:
-#     """
-#     Get monthly birthday summary.
-#     """
+# test functions
+@app.route(route="test-monthly-summary", auth_level=func.AuthLevel.ANONYMOUS)
+def MonthlyBirthdaySummaryTest(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Get monthly birthday summary.
+    """
 
-#     logger.info("MonthlyBirthdaySummaryFunction triggered.")
+    logger.info("MonthlyBirthdaySummaryFunction triggered.")
 
-#     system_event = sql_client.start_system_event(
-#         function_name="MonthlyBirthdaySummaryFunction",
-#         trigger_type="timer",
-#         event_type="ingestion",
-#     )
+    system_event = sql_client.start_system_event(
+        function_name="MonthlyBirthdaySummaryFunction",
+        trigger_type="timer",
+        event_type="ingestion",
+    )
 
-#     try:
-#         logger.info("Retrieving monthly birthday summary from SQL.")
-#         summary_df = get_monthly_birthday_summary(sql_client=sql_client)
-#         logger.info("Monthly birthday summary retrieved")
+    try:
+        logger.info("Retrieving monthly birthday summary from SQL.")
+        summary_df = get_monthly_birthday_summary(sql_client=sql_client)
+        logger.info("Monthly birthday summary retrieved")
 
-#         logger.info("Sending monthly birthday summary email.")
-#         # send_monthly_birthday_summary_email(summary_df=summary_df)
-#         logger.info("Monthly birthday summary email sent")
+        logger.info("Sending monthly birthday summary email.")
+        email_result = send_monthly_birthday_summary_emails(summary_df=summary_df)
+        if email_result["attempted"] > 0 and email_result["sent"] == 0:
+            raise RuntimeError("Failed to send monthly birthday summary email to all recipients.")
+        if email_result["failed"] > 0:
+            logger.warning(
+                "Monthly birthday summary email completed with partial failures. sent=%s failed=%s",
+                email_result["sent"],
+                email_result["failed"],
+            )
+        else:
+            logger.info("Monthly birthday summary email sent")
 
-#         sql_client.complete_system_event(
-#             system_event_id=system_event.id,
-#             status="succeeded",
-#         )
-#         return func.HttpResponse(
-#             json.dumps(
-#                 {
-#                     "status": "ok",
-#                     "message": "MonthlyBirthdaySummaryFunction succeeded",
-#                     "system_event_id": str(system_event.id),
-#                     "rows": len(summary_df),
-#                     "birthdays": summary_df.to_dict(orient="records"),
-#                 }
-#             ),
-#             status_code=200,
-#             mimetype="application/json",
-#         )
-#     except Exception as exc: 
-#         logger.exception("MonthlyBirthdaySummaryFunction failed.")
-#         sql_client.complete_system_event(
-#             system_event_id=system_event.id,
-#             status="failed",
-#             details=str(exc),
-#         )
-#         return func.HttpResponse(
-#             json.dumps(
-#                 {
-#                     "status": "error",
-#                     "message": "MonthlyBirthdaySummaryFunction failed",
-#                     "system_event_id": str(system_event.id),
-#                 }
-#             ),
-#             status_code=500,
-#             mimetype="application/json",
-#         )  
+        sql_client.complete_system_event(
+            system_event_id=system_event.id,
+            status="succeeded",
+        )
+        return func.HttpResponse(
+            json.dumps(
+                {
+                    "status": "ok",
+                    "message": "MonthlyBirthdaySummaryFunction succeeded",
+                    "system_event_id": str(system_event.id),
+                    "rows": len(summary_df),
+                    "birthdays": summary_df.to_dict(orient="records"),
+                }
+            ),
+            status_code=200,
+            mimetype="application/json",
+        )
+    except Exception as exc: 
+        logger.exception("MonthlyBirthdaySummaryFunction failed.")
+        sql_client.complete_system_event(
+            system_event_id=system_event.id,
+            status="failed",
+            details=str(exc),
+        )
+        return func.HttpResponse(
+            json.dumps(
+                {
+                    "status": "error",
+                    "message": "MonthlyBirthdaySummaryFunction failed",
+                    "system_event_id": str(system_event.id),
+                }
+            ),
+            status_code=500,
+            mimetype="application/json",
+        )  
 
 
-# @app.route(route="test-daily-summary", auth_level=func.AuthLevel.ANONYMOUS)
-# def DailyBirthdaySummaryTest(req: func.HttpRequest) -> func.HttpResponse:
-#     """
-#     Get daily birthday summary.
-#     """
+@app.route(route="test-daily-summary", auth_level=func.AuthLevel.ANONYMOUS)
+def DailyBirthdaySummaryTest(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Get daily birthday summary.
+    """
 
-#     logger.info("DailyBirthdaySummaryFunction triggered.")
+    logger.info("DailyBirthdaySummaryFunction triggered.")
 
-#     system_event = sql_client.start_system_event(
-#         function_name="DailyBirthdaySummaryFunction",
-#         trigger_type="timer",
-#         event_type="ingestion",
-#     )
+    system_event = sql_client.start_system_event(
+        function_name="DailyBirthdaySummaryFunction",
+        trigger_type="timer",
+        event_type="ingestion",
+    )
 
-#     try:
-#         logger.info("Retrieving daily birthday summary from SQL.")
-#         summary_df = get_daily_birthdays(sql_client=sql_client)
-#         logger.info("Daily birthday summary retrieved")
+    try:
+        logger.info("Retrieving daily birthday summary from SQL.")
+        summary_df = get_daily_birthdays(sql_client=sql_client)
+        logger.info("Daily birthday summary retrieved")
 
-#         logger.info("Sending daily birthday summary email.")
-#         send_daily_birthday_emails(summary_df=summary_df)
-#         logger.info("Daily birthday summary email sent")
+        logger.info("Sending daily birthday summary email.")
+        email_result = send_daily_birthday_emails(summary_df=summary_df)
+        if email_result["attempted"] > 0 and email_result["sent"] == 0:
+            raise RuntimeError("Failed to send daily birthday email to all recipients.")
+        if email_result["failed"] > 0:
+            logger.warning(
+                "Daily birthday email completed with partial failures. sent=%s failed=%s",
+                email_result["sent"],
+                email_result["failed"],
+            )
+        else:
+            logger.info("Daily birthday summary email sent")
 
-#         sql_client.complete_system_event(
-#             system_event_id=system_event.id,
-#             status="succeeded",
-#         )
-#     except Exception as exc: 
-#         logger.exception("DailyBirthdaySummaryFunction failed.")
-#         sql_client.complete_system_event(
-#             system_event_id=system_event.id,
-#             status="failed",
-#             details=str(exc),
-#         )
-#         return func.HttpResponse(
-#             json.dumps(
-#                 {
-#                     "status": "error",
-#                     "message": "DailyBirthdaySummaryFunction failed",
-#                     "system_event_id": str(system_event.id),
-#                 }
-#             ),
-#             status_code=500,
-#             mimetype="application/json",
-#         )
-#         raise
+        sql_client.complete_system_event(
+            system_event_id=system_event.id,
+            status="succeeded",
+        )
+    except Exception as exc: 
+        logger.exception("DailyBirthdaySummaryFunction failed.")
+        sql_client.complete_system_event(
+            system_event_id=system_event.id,
+            status="failed",
+            details=str(exc),
+        )
+        return func.HttpResponse(
+            json.dumps(
+                {
+                    "status": "error",
+                    "message": "DailyBirthdaySummaryFunction failed",
+                    "system_event_id": str(system_event.id),
+                }
+            ),
+            status_code=500,
+            mimetype="application/json",
+        )
+        raise
