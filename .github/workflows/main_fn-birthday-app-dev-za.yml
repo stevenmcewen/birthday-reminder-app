@@ -11,6 +11,7 @@ on:
   workflow_dispatch:
 
 env:
+  AZURE_FUNCTIONAPP_NAME: 'fn-birthday-app-dev-za'
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
   PYTHON_VERSION: '3.12' # set this to the python version to use (supports 3.6, 3.7, 3.8)
 
@@ -82,11 +83,31 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9AA5FAA7298C493285F645C4B6B74E8C }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_3897DAD5AAD9437A81AC5E4A51BD4466 }}
 
+      - name: Ensure Function App build/runtime settings
+        run: |
+          RESOURCE_GROUP=$(az functionapp show --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" --query resourceGroup -o tsv)
+          az functionapp config appsettings set \
+            --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" \
+            --resource-group "$RESOURCE_GROUP" \
+            --settings \
+              SCM_DO_BUILD_DURING_DEPLOYMENT=true \
+              ENABLE_ORYX_BUILD=true \
+              FUNCTIONS_WORKER_RUNTIME=python
+
+      - name: Verify Function App build/runtime settings
+        run: |
+          RESOURCE_GROUP=$(az functionapp show --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" --query resourceGroup -o tsv)
+          az functionapp config appsettings list \
+            --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[?name=='SCM_DO_BUILD_DURING_DEPLOYMENT' || name=='ENABLE_ORYX_BUILD' || name=='FUNCTIONS_WORKER_RUNTIME' || name=='AzureWebJobsStorage'].name" \
+            -o table
+
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
         id: deploy-to-function
         with:
-          app-name: 'fn-birthday-app-dev-za'
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
           slot-name: 'Production'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
           scm-do-build-during-deployment: true
