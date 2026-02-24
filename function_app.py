@@ -6,7 +6,7 @@ from functions.sql.sql import SqlClient
 from functions.logger.logger import get_logger
 
 from functions.birthday_logic.birthday import get_monthly_birthday_summary, get_daily_birthdays
-# from functions.emailer.emailer import send_monthly_birthday_summary_email, send_daily_birthday_emails
+from functions.emailer.emailer import send_monthly_birthday_summary_emails, send_daily_birthday_emails
 
 app = func.FunctionApp()
 
@@ -41,8 +41,17 @@ def MonthlyBirthdaySummary(timer: func.TimerRequest) -> None:
         logger.info("Monthly birthday summary retrieved")
 
         logger.info("Sending monthly birthday summary email.")
-        # send_monthly_birthday_summary_email(summary_df=summary_df)
-        logger.info("Monthly birthday summary email sent")
+        email_result = send_monthly_birthday_summary_emails(summary_df=summary_df)
+        if email_result["attempted"] > 0 and email_result["sent"] == 0:
+            raise RuntimeError("Failed to send monthly birthday summary email to all recipients.")
+        if email_result["failed"] > 0:
+            logger.warning(
+                "Monthly birthday summary email completed with partial failures. sent=%s failed=%s",
+                email_result["sent"],
+                email_result["failed"],
+            )
+        else:
+            logger.info("Monthly birthday summary email sent")
 
         sql_client.complete_system_event(
             system_event_id=system_event.id,
@@ -82,8 +91,17 @@ def DailyBirthdaySummary(timer: func.TimerRequest) -> None:
         logger.info("Daily birthday summary retrieved")
 
         logger.info("Sending daily birthday summary email.")
-        # send_daily_birthday_emails(summary_df=summary_df)
-        logger.info("Daily birthday summary email sent")
+        email_result = send_daily_birthday_emails(summary_df=summary_df)
+        if email_result["attempted"] > 0 and email_result["sent"] == 0:
+            raise RuntimeError("Failed to send daily birthday email to all recipients.")
+        if email_result["failed"] > 0:
+            logger.warning(
+                "Daily birthday email completed with partial failures. sent=%s failed=%s",
+                email_result["sent"],
+                email_result["failed"],
+            )
+        else:
+            logger.info("Daily birthday summary email sent")
 
         sql_client.complete_system_event(
             system_event_id=system_event.id,
@@ -118,8 +136,17 @@ def DailyBirthdaySummary(timer: func.TimerRequest) -> None:
 #         logger.info("Monthly birthday summary retrieved")
 
 #         logger.info("Sending monthly birthday summary email.")
-#         # send_monthly_birthday_summary_email(summary_df=summary_df)
-#         logger.info("Monthly birthday summary email sent")
+#         email_result = send_monthly_birthday_summary_emails(summary_df=summary_df)
+#         if email_result["attempted"] > 0 and email_result["sent"] == 0:
+#             raise RuntimeError("Failed to send monthly birthday summary email to all recipients.")
+#         if email_result["failed"] > 0:
+#             logger.warning(
+#                 "Monthly birthday summary email completed with partial failures. sent=%s failed=%s",
+#                 email_result["sent"],
+#                 email_result["failed"],
+#             )
+#         else:
+#             logger.info("Monthly birthday summary email sent")
 
 #         sql_client.complete_system_event(
 #             system_event_id=system_event.id,
@@ -178,8 +205,17 @@ def DailyBirthdaySummary(timer: func.TimerRequest) -> None:
 #         logger.info("Daily birthday summary retrieved")
 
 #         logger.info("Sending daily birthday summary email.")
-#         send_daily_birthday_emails(summary_df=summary_df)
-#         logger.info("Daily birthday summary email sent")
+#         email_result = send_daily_birthday_emails(summary_df=summary_df)
+#         if email_result["attempted"] > 0 and email_result["sent"] == 0:
+#             raise RuntimeError("Failed to send daily birthday email to all recipients.")
+#         if email_result["failed"] > 0:
+#             logger.warning(
+#                 "Daily birthday email completed with partial failures. sent=%s failed=%s",
+#                 email_result["sent"],
+#                 email_result["failed"],
+#             )
+#         else:
+#             logger.info("Daily birthday summary email sent")
 
 #         sql_client.complete_system_event(
 #             system_event_id=system_event.id,
