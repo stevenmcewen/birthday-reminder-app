@@ -127,6 +127,24 @@ def build_email_bodies_monthly(payload_df: pd.DataFrame, to_address: str) -> tup
     for _, row in email_df.iterrows():
         name = row.get("name", "Unknown")
         birthday = row.get("birthday_day", "Unknown")
+
+        if isinstance(birthday, int):
+            last_two = birthday % 100
+            last_one = birthday % 10
+
+            if last_two in (11, 12, 13):
+                suffix = "th"
+            elif last_one == 1:
+                suffix = "st"
+            elif last_one == 2:
+                suffix = "nd"
+            elif last_one == 3:
+                suffix = "rd"
+            else:
+                suffix = "th"
+
+            birthday = f"{birthday}{suffix}"
+
         text_body += f"- {name}: {birthday}\n"
         html_body += f"<li>{name}: {birthday}</li>"
 
