@@ -53,7 +53,7 @@ class SqlClient:
             f"Database={settings.sql_database};"
             "Encrypt=yes;"
             "TrustServerCertificate=no;"
-            "Connection Timeout=30;"
+            "Connection Timeout=45;"
         )
 
         def _get_connection():
@@ -66,8 +66,9 @@ class SqlClient:
             cold starts (e.g. when SQL or managed identity is still
             waking up).
             """
-            max_attempts = 3
+            max_attempts = 5
             delay_seconds = 5
+            max_delay_seconds = 30
             last_exc: Exception | None = None
 
             for attempt in range(1, max_attempts + 1):
@@ -85,9 +86,14 @@ class SqlClient:
                         exc,
                     )
                     if attempt < max_attempts:
+                        logger.info(
+                            "Retrying SQL connection in %s seconds (attempt %s/%s).",
+                            delay_seconds,
+                            attempt + 1,
+                            max_attempts,
+                        )
                         time.sleep(delay_seconds)
-                        # exponential backoff pattern
-                        delay_seconds *= 2
+                        delay_seconds = min(delay_seconds * 2, max_delay_seconds)
 
             logger.error("SQL connection failed after %s attempts", max_attempts)
             raise last_exc
